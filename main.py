@@ -38,7 +38,7 @@ async def get_api_key(api_key_header: str = Depends(api_key_header)):
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-@app.post("v1/chat/completions")
+@app.post("/v1/chat/completions")  # Note the leading slash
 async def chat_completions(payload: dict, api_key: str = Depends(get_api_key)):
     logger.info(f"Received request with payload: {payload}")
     headers = {
