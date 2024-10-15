@@ -25,7 +25,7 @@ app.add_middleware(
 )
 
 # Authentication
-API_KEY = os.getenv("API_KEY", "az-intial-key")  # Hardcoded API key
+API_KEY = os.getenv("API_KEY", "az-initial-key")  # Hardcoded API key
 api_key_header = APIKeyHeader(name="Authorization", auto_error=False)
 
 async def get_api_key(api_key_header: str = Depends(api_key_header)):
