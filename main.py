@@ -25,11 +25,14 @@ app.add_middleware(
 )
 
 # Authentication
-API_KEY = os.getenv("API_KEY", "az-initial-key")  # Hardcoded API key
+API_KEYS = [
+    "az-initial-key",  # Existing hardcoded API key
+    "az-test-key"      # New hardcoded API key
+]
 api_key_header = APIKeyHeader(name="Authorization", auto_error=False)
 
 async def get_api_key(api_key_header: str = Depends(api_key_header)):
-    if not api_key_header or api_key_header != f"Bearer {API_KEY}":
+    if not api_key_header or not any(api_key_header == f"Bearer {key}" for key in API_KEYS):
         logger.warning(f"Invalid API Key: {api_key_header}")
         raise HTTPException(status_code=401, detail="Invalid API Key")
     return api_key_header
