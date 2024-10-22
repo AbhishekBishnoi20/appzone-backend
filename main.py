@@ -6,7 +6,6 @@ import httpx
 import os
 from dotenv import load_dotenv
 import logging
-import json
 
 load_dotenv()
 
@@ -40,36 +39,11 @@ async def get_api_key(api_key_header: str = Depends(api_key_header)):
 
 # OpenAI API details
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
-OPENAI_MODERATION_URL = "https://api.openai.com/v1/moderations"
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-@app.post("/v1/chat/completions")
+@app.post("/v1/chat/completions")  # Note the leading slash
 async def chat_completions(payload: dict, api_key: str = Depends(get_api_key)):
     logger.info(f"Received request with payload: {payload}")
-    
-    # Extract the text content from the messages
-    text_to_moderate = " ".join([message.get("content", "") for message in payload.get("messages", [])])
-    
-    # Perform moderation check
-    moderation_payload = {
-        "input": text_to_moderate,
-        "model": "text-moderation-latest"
-    }
-    moderation_headers = {
-        "Authorization": f"Bearer {OPENAI_API_KEY}",
-        "Content-Type": "application/json",
-    }
-    
-    async with httpx.AsyncClient() as client:
-        moderation_response = await client.post(OPENAI_MODERATION_URL, json=moderation_payload, headers=moderation_headers)
-        moderation_result = moderation_response.json()
-    
-    # Check if content is flagged
-    if moderation_result["results"][0]["flagged"]:
-        logger.warning(f"Content flagged by moderation: {moderation_result}")
-        raise HTTPException(status_code=400, detail="Content flagged as inappropriate")
-    
-    # If content is not flagged, proceed with the chat completion request
     headers = {
         "Authorization": f"Bearer {OPENAI_API_KEY}",
         "Content-Type": "application/json",
