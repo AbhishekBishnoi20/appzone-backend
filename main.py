@@ -38,8 +38,8 @@ async def get_api_key(api_key_header: str = Depends(api_key_header)):
     return api_key_header
 
 # OpenAI API details
-OPENAI_API_URL = "https://api.proxyapi.ru/openai/v1/chat/completions"
-OPENAI_API_KEY = "sk-VKa9joRd7jw8szImPTxBaji0HV6ioHpW"
+OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 @app.post("/v1/chat/completions")  # Note the leading slash
 async def chat_completions(payload: dict, api_key: str = Depends(get_api_key)):
