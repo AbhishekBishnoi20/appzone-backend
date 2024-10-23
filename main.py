@@ -3,12 +3,10 @@ from fastapi.security import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import StreamingResponse
 import httpx
-import os
 from dotenv import load_dotenv
 import logging
 import json
-import asyncio
-import orjson  # Add this import at the top of your file
+
 from typing import AsyncGenerator
 
 load_dotenv()
