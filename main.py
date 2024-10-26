@@ -41,8 +41,8 @@ async def get_api_key(api_key_header: str = Depends(api_key_header)):
     return api_key_header
 
 # PocketBase configuration
-POCKETBASE_URL = os.getenv("POCKETBASE_URL", "http://pocketbase-vhkachra.appzone.tech/api/")
-ADMIN_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzA5ODA2MDQsImlkIjoid3h2ODE0ZTZ3NDRndmM0IiwidHlwZSI6ImFkbWluIn0.k7sX6xXd5EmRp8xw7s6Az9Q4inpB-nZBCnhrZAA_FP8"
+POCKETBASE_URL = os.getenv("POCKETBASE_URL", "https://pocketbase-forapp.appsettle.com/api/")
+ADMIN_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzExNjEwOTEsImlkIjoiN3djczBrOG9mNzBja284IiwidHlwZSI6ImFkbWluIn0.NUBWeLCCKI_1qRU3FLEu9mIVBJpgzpeFEeTc11zLO4M"
 
 async def get_model_config(model_name):
     collection_name = model_name.replace("-", "_").capitalize()
