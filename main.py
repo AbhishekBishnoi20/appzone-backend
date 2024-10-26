@@ -40,27 +40,26 @@ async def get_api_key(api_key_header: str = Depends(api_key_header)):
         raise HTTPException(status_code=401, detail="Invalid API Key")
     return api_key_header
 
-# Remove these lines:
-# POCKETBASE_URL = os.getenv("POCKETBASE_URL", "http://pocketbase-vhkachra.appzone.tech/api/")
-# ADMIN_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzA5ODA2MDQsImlkIjoid3h2ODE0ZTZ3NDRndmM0IiwidHlwZSI6ImFkbWluIn0.k7sX6xXd5EmRp8xw7s6Az9Q4inpB-nZBCnhrZAA_FP8"
-
-MODEL_CONFIGS = {
-    "gpt-4o-mini": {
-        "base_url": "https://api.chatanywhere.com.cn/v1",
-        "api_key": "sk-pu4PasDkEf284PIbVr1r5jn9rlvbAJESZGpPbK7OFYYR6m9g"
-    },
-    "gpt-4o": {
-        "base_url": "https://apis.chatfire.cn/v1",
-        "api_key": "sk-tfoO5ew6EIK9WbMlE7A5012832274593912e3e79De734198"
-    }
-}
+# PocketBase configuration
+POCKETBASE_URL = os.getenv("POCKETBASE_URL", "http://pocketbase-vhkachra.appzone.tech/api/")
+ADMIN_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzA5ODA2MDQsImlkIjoid3h2ODE0ZTZ3NDRndmM0IiwidHlwZSI6ImFkbWluIn0.k7sX6xXd5EmRp8xw7s6Az9Q4inpB-nZBCnhrZAA_FP8"
 
 async def get_model_config(model_name):
-    if model_name not in MODEL_CONFIGS:
-        raise ValueError(f"No configuration found for model: {model_name}")
+    collection_name = model_name.replace("-", "_").capitalize()
     
-    config = MODEL_CONFIGS[model_name]
-    return config["base_url"], config["api_key"]
+    headers = {
+        "Authorization": ADMIN_TOKEN
+    }
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get(f"{POCKETBASE_URL}collections/{collection_name}/records", headers=headers) as response:
+            if response.status == 200:
+                data = await response.json()
+                if data.get("items") and len(data["items"]) > 0:
+                    item = data["items"][0]
+                    return item.get("base_url"), item.get("api_key")
+    
+    raise ValueError(f"No configuration found for model: {model_name}")
 
 @app.post("/v1/chat/completions")
 async def chat_completions(payload: dict, api_key: str = Depends(get_api_key)):
