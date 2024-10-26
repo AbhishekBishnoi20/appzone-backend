@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import logging
 import json
 import os
+import asyncio
 
 from typing import AsyncGenerator
 
@@ -43,6 +44,11 @@ async def get_api_key(api_key_header: str = Depends(api_key_header)):
 # PocketBase configuration
 POCKETBASE_URL = os.getenv("POCKETBASE_URL", "https://pocketbase-forapp.appsettle.com/api/")
 ADMIN_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzExNjEwOTEsImlkIjoiN3djczBrOG9mNzBja284IiwidHlwZSI6ImFkbWluIn0.NUBWeLCCKI_1qRU3FLEu9mIVBJpgzpeFEeTc11zLO4M"
+SYSTEM_PROMPT = """
+You are ChatGPT, a large language model trained by OpenAI, based on the GPT-4 architecture.
+You are chatting with the user via the ChatGPT Android app. This means most of the time your lines should be a sentence or two, unless the user's request requires reasoning or long-form outputs. Never use emojis unless explicitly asked to. Do not use any special text formatting. Never use # or ### for headings. Never use asterisks for bold or italic text. Never use backticks for code blocks. Never use hyphens or asterisks for bullet points. Never use > for quotes. Never use square brackets or parentheses for links. Never use numbered lists with dots.
+All responses must be in plain text only with regular numbers and letters. Use simple line breaks to separate paragraphs when needed.
+"""
 
 async def get_model_config(model_name):
     collection_name = model_name.replace("-", "_").capitalize()
@@ -65,6 +71,16 @@ async def get_model_config(model_name):
 async def chat_completions(payload: dict, api_key: str = Depends(get_api_key)):
     logger.info("Received request")
 
+    # Add system prompt to the messages
+    system_prompt = {
+        "role": "system",
+        "content": SYSTEM_PROMPT
+    }
+    
+    # Create a new messages array with system prompt followed by user messages
+    user_messages = payload.get("messages", [])
+    payload["messages"] = [system_prompt] + user_messages
+
     try:
         model_name = payload.get("model", "gpt-4o")
         logger.info(f"Fetching configuration for model: {model_name}")
@@ -81,7 +97,13 @@ async def chat_completions(payload: dict, api_key: str = Depends(get_api_key)):
     }
 
     async def stream_response() -> AsyncGenerator[str, None]:
-        async with aiohttp.ClientSession() as session:
+        # Set 5 minute total timeout
+        timeout = aiohttp.ClientTimeout(
+            total=300,  # 5 minutes total timeout
+            connect=30  # 30 seconds for initial connection
+        )
+        
+        async with aiohttp.ClientSession(timeout=timeout) as session:
             try:
                 api_url = f"{base_url}/chat/completions"
                 logger.info(f"Sending request to {api_url}")
@@ -153,6 +175,9 @@ async def chat_completions(payload: dict, api_key: str = Depends(get_api_key)):
                     yield "data: [DONE]\n\n"
                     logger.info("Sent to client: [DONE]")
 
+            except asyncio.TimeoutError:
+                logger.error("Request timed out after 5 minutes")
+                yield f"data: {{\"error\": \"Request timed out after 5 minutes\"}}\n\n"
             except aiohttp.ClientError as e:
                 logger.error(f"Error in stream_response: {str(e)}")
                 yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
