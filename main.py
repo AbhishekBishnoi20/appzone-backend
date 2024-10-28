@@ -50,8 +50,9 @@ You are chatting with the user via the ChatGPT Android app. This means most of t
 All responses must be in plain text only with regular numbers and letters. Use simple line breaks to separate paragraphs when needed.
 """
 
-async def get_model_config(model_name):
-    collection_name = model_name.replace("-", "_").capitalize()
+async def get_model_config(model_name, has_image=False):
+    # If the request contains an image, use the vision configuration
+    collection_name = "Gpt_vision" if has_image else model_name.replace("-", "_").capitalize()
     
     headers = {
         "Authorization": ADMIN_TOKEN
@@ -65,11 +66,23 @@ async def get_model_config(model_name):
                     item = data["items"][0]
                     return item.get("base_url"), item.get("api_key")
     
-    raise ValueError(f"No configuration found for model: {model_name}")
+    raise ValueError(f"No configuration found for collection: {collection_name}")
 
 @app.post("/v1/chat/completions")
 async def chat_completions(payload: dict, api_key: str = Depends(get_api_key)):
     logger.info("Received request")
+
+    # Check if the request contains an image
+    has_image = False
+    messages = payload.get("messages", [])
+    for message in messages:
+        if message.get("role") == "user":
+            content = message.get("content", [])
+            if isinstance(content, list):
+                for item in content:
+                    if item.get("type") == "image_url":
+                        has_image = True
+                        break
 
     # Add system prompt to the messages
     system_prompt = {
@@ -78,14 +91,13 @@ async def chat_completions(payload: dict, api_key: str = Depends(get_api_key)):
     }
     
     # Create a new messages array with system prompt followed by user messages
-    user_messages = payload.get("messages", [])
-    payload["messages"] = [system_prompt] + user_messages
+    payload["messages"] = [system_prompt] + messages
 
     try:
         model_name = payload.get("model", "gpt-4o")
-        logger.info(f"Fetching configuration for model: {model_name}")
+        logger.info(f"Fetching configuration for model: {model_name}, has_image: {has_image}")
         
-        base_url, api_key = await get_model_config(model_name)
+        base_url, api_key = await get_model_config(model_name, has_image)
         logger.info(f"Model configuration obtained - Base URL: {base_url}")
     except ValueError as e:
         logger.error(f"Error fetching model configuration: {str(e)}")
