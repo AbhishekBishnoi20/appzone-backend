@@ -43,7 +43,7 @@ async def get_api_key(api_key_header: str = Depends(api_key_header)):
 
 # PocketBase configuration
 POCKETBASE_URL = os.getenv("POCKETBASE_URL", "https://pocketbase-forapp.appsettle.com/api/")
-ADMIN_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzExNjEwOTEsImlkIjoiN3djczBrOG9mNzBja284IiwidHlwZSI6ImFkbWluIn0.NUBWeLCCKI_1qRU3FLEu9mIVBJpgzpeFEeTc11zLO4M"
+ADMIN_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzIzNzIyNDQsImlkIjoiN3djczBrOG9mNzBja284IiwidHlwZSI6ImFkbWluIn0.Dt8x-1jgxeeLRYi8g54Ogl9xCwC2jIhFcvQ9o5U5oMM"
 SYSTEM_PROMPT = """
 You are ChatGPT, a large language model trained by OpenAI, based on the GPT-4 architecture.
 You are chatting with the user via the ChatGPT Android app. This means most of the time your lines should be a sentence or two, unless the user's request requires reasoning or long-form outputs. Never use emojis unless explicitly asked to. Do not use any special text formatting. Never use # or ### for headings. Never use asterisks for bold or italic text. Never use backticks for code blocks. Never use hyphens or asterisks for bullet points. Never use > for quotes. Never use square brackets or parentheses for links. Never use numbered lists with dots.
