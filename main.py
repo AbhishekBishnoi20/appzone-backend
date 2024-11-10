@@ -8,6 +8,7 @@ import logging
 import json
 import os
 import asyncio
+import random
 
 from typing import AsyncGenerator
 
@@ -50,23 +51,34 @@ You are chatting with the user via the ChatGPT Android app. This means most of t
 All responses must be in plain text only with regular numbers and letters. Use simple line breaks to separate paragraphs when needed.
 """
 
+# Add these constants at the top with other configurations
+CHATANYWHERE_BASE_URL = "https://api.chatanywhere.com.cn/v1"
+GITHUB_BASE_URL = "https://models.inference.ai.azure.com"
+
 async def get_model_config(model_name, has_image=False):
-    # If the request contains an image, use the vision configuration
-    collection_name = "Gpt_vision" if has_image else model_name.replace("-", "_").capitalize()
+    # Determine which base URL and collection to use
+    if has_image or model_name == "gpt-4o":
+        base_url = GITHUB_BASE_URL
+        collection_name = "github_keys"
+    else:  # for gpt-4o-mini
+        base_url = CHATANYWHERE_BASE_URL
+        collection_name = "Gpt_4o_Mini"
     
     headers = {
         "Authorization": ADMIN_TOKEN
     }
     
+    # Fetch all available keys
     async with aiohttp.ClientSession() as session:
         async with session.get(f"{POCKETBASE_URL}collections/{collection_name}/records", headers=headers) as response:
             if response.status == 200:
                 data = await response.json()
                 if data.get("items") and len(data["items"]) > 0:
-                    item = data["items"][0]
-                    return item.get("base_url"), item.get("api_key")
+                    # Randomly select one key from available keys
+                    item = random.choice(data["items"])
+                    return base_url, item.get("api_key")
     
-    raise ValueError(f"No configuration found for collection: {collection_name}")
+    raise ValueError(f"No API keys found for collection: {collection_name}")
 
 @app.post("/v1/chat/completions")
 async def chat_completions(payload: dict, api_key: str = Depends(get_api_key)):
