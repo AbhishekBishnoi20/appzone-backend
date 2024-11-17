@@ -52,17 +52,13 @@ All responses must be in plain text only with regular numbers and letters. Use s
 """
 
 # Add these constants at the top with other configurations
-CHATANYWHERE_BASE_URL = "https://api.chatanywhere.com.cn/v1"
+# CHATANYWHERE_BASE_URL = "https://api.chatanywhere.com.cn/v1"
 GITHUB_BASE_URL = "https://models.inference.ai.azure.com"
 
 async def get_model_config(model_name, has_image=False):
-    # Determine which base URL and collection to use
-    if has_image or model_name == "gpt-4o":
-        base_url = GITHUB_BASE_URL
-        collection_name = "github_keys"
-    else:  # for gpt-4o-mini
-        base_url = CHATANYWHERE_BASE_URL
-        collection_name = "Gpt_4o_Mini"
+    # Simplified logic to always use GITHUB_BASE_URL and github_keys collection
+    base_url = GITHUB_BASE_URL
+    collection_name = "github_keys"
     
     headers = {
         "Authorization": ADMIN_TOKEN
