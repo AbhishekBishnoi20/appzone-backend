@@ -54,13 +54,17 @@ Important: Never respond with standalone bullet points or numbers. Always includ
 - Point 2
 """
 # Add these constants at the top with other configurations
-# CHATANYWHERE_BASE_URL = "https://api.chatanywhere.com.cn/v1"
+CHATANYWHERE_BASE_URL = "https://api.chatanywhere.com.cn/v1"
 GITHUB_BASE_URL = "https://models.inference.ai.azure.com"
 
 async def get_model_config(model_name, has_image=False):
-    # Always use GitHub URL and keys regardless of model
-    base_url = GITHUB_BASE_URL
-    collection_name = "github_keys"
+    # Choose base URL and collection based on whether request has image
+    if has_image:
+        base_url = GITHUB_BASE_URL
+        collection_name = "github_keys"
+    else:
+        base_url = CHATANYWHERE_BASE_URL
+        collection_name = "chatanywhere_keys"
     
     headers = {
         "Authorization": ADMIN_TOKEN
