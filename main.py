@@ -144,7 +144,7 @@ async def chat_completions(
         logger.info(f"Fetching configuration for model: {model_name}, has_image: {has_image}")
         
         base_url, api_key = await get_model_config(model_name, has_image)
-        logger.info(f"Model configuration obtained - Base URL: {base_url}")
+        logger.info(f"Model configuration obtained - Base URL: {base_url}, API Key: {api_key}")
     except ValueError as e:
         logger.error(f"Error fetching model configuration: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to fetch model configuration")
