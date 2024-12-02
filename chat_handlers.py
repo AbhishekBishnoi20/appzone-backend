@@ -6,6 +6,7 @@ from typing import AsyncGenerator
 from fastapi import HTTPException
 import sqlite3
 from datetime import datetime
+import tiktoken
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -14,6 +15,8 @@ class ChatCompletionHandler:
     def __init__(self, system_prompt, cot_system_prompt):
         self.SYSTEM_PROMPT = system_prompt
         self.COT_SYSTEM_PROMPT = cot_system_prompt
+        self.MAX_INPUT_TOKENS = 8000
+        self.encoding = tiktoken.get_encoding("cl100k_base")  # GPT-4 encoding
         self.db_connection = sqlite3.connect('prompts.db', check_same_thread=False)
         self._setup_database()
 
@@ -65,30 +68,75 @@ class ChatCompletionHandler:
         
         return text_content.strip(), image_data
 
+    def _count_tokens(self, text: str) -> int:
+        """Count the number of tokens in a text string."""
+        return len(self.encoding.encode(text))
+
+    def _truncate_messages(self, messages: list, system_prompt: str) -> list:
+        """Truncate messages to fit within token limit while preserving recent context."""
+        # Start with system prompt tokens
+        total_tokens = self._count_tokens(system_prompt)
+        
+        # Reserve some tokens for the response (500 for safety buffer)
+        available_tokens = self.MAX_INPUT_TOKENS - 500
+        
+        # Process messages from newest to oldest
+        truncated_messages = []
+        
+        # Always include the most recent message
+        if messages:
+            latest_message = messages[-1]
+            content = latest_message.get("content", "")
+            if isinstance(content, list):  # Handle multimodal content
+                content_tokens = sum(self._count_tokens(item.get("text", "")) 
+                                  for item in content 
+                                  if item.get("type") == "text")
+            else:
+                content_tokens = self._count_tokens(str(content))
+            
+            total_tokens += content_tokens
+            truncated_messages.insert(0, latest_message)
+        
+        # Process remaining messages from newest to oldest
+        for message in reversed(messages[:-1]):
+            content = message.get("content", "")
+            if isinstance(content, list):
+                content_tokens = sum(self._count_tokens(item.get("text", "")) 
+                                  for item in content 
+                                  if item.get("type") == "text")
+            else:
+                content_tokens = self._count_tokens(str(content))
+            
+            # Check if adding this message would exceed the limit
+            if total_tokens + content_tokens <= available_tokens:
+                total_tokens += content_tokens
+                truncated_messages.insert(0, message)
+            else:
+                # If we can't add more messages, break
+                break
+        
+        logger.info(f"Total tokens after truncation: {total_tokens}")
+        return truncated_messages
+
     async def process_chat_completion(self, payload: dict, base_url: str, api_key: str) -> AsyncGenerator[str, None]:
         # Extract and save the user prompt and image data
         messages = payload.get("messages", [])
         text_content, image_urls = self._extract_prompt_content(messages)
         await self.save_prompt(text_content, image_urls)
         
+        # Choose the appropriate system prompt
+        selected_system_prompt = self.COT_SYSTEM_PROMPT if payload.get("model") == "o1" else self.SYSTEM_PROMPT
+        
+        # Truncate messages to fit token limit
+        truncated_messages = self._truncate_messages(messages, selected_system_prompt)
+        
+        # Create payload with truncated messages
+        payload["messages"] = [{"role": "system", "content": selected_system_prompt}] + truncated_messages
+        
         # Always use gpt-4o-mini regardless of requested model
         original_model = payload.get("model", "")
         payload["model"] = "gpt-4o-mini"
         logger.info(f"Original model request: {original_model}, Using: gpt-4o-mini")
-
-        # Check if the request contains an image
-        messages = payload.get("messages", [])
-        
-        # Choose the appropriate system prompt based on model
-        selected_system_prompt = self.COT_SYSTEM_PROMPT if original_model == "o1" else self.SYSTEM_PROMPT
-        
-        system_prompt = {
-            "role": "system",
-            "content": selected_system_prompt
-        }
-        
-        # Create a new messages array with system prompt followed by user messages
-        payload["messages"] = [system_prompt] + messages
 
         headers = {
             "Authorization": f"Bearer {api_key}",
