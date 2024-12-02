@@ -43,21 +43,31 @@ class ChatCompletionHandler:
             )
 
     def _extract_prompt_content(self, messages):
-        """Extract prompt content and image data from messages."""
+        """Extract the latest user prompt content and image data from messages."""
         if not messages:
             return "", []
         
-        first_message = messages[0].get("content", "")
+        # Find the last user message
+        last_user_message = None
+        for message in reversed(messages):
+            if message.get("role") == "user":
+                last_user_message = message
+                break
+        
+        if not last_user_message:
+            return "", []
+        
+        content = last_user_message.get("content", "")
         image_data = []
         text_content = ""
         
         # Handle string content
-        if isinstance(first_message, str):
-            return first_message, image_data
+        if isinstance(content, str):
+            return content, image_data
         
         # Handle list content (multimodal input)
-        if isinstance(first_message, list):
-            for item in first_message:
+        if isinstance(content, list):
+            for item in content:
                 if isinstance(item, dict):
                     if item.get("type") == "text":
                         text_content += item.get("text", "") + " "
