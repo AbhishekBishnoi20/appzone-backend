@@ -3,3 +3,5 @@ uvicorn
 aiohttp
 python-dotenv
 slowapi
+jinja2
+python-multipart
