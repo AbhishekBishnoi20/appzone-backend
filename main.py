@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends, Request
-from fastapi.security import APIKeyHeader
+from fastapi.security import APIKeyHeader, HTTPBasic, HTTPBasicCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import StreamingResponse
 import aiohttp
@@ -32,7 +32,7 @@ from datetime import datetime
 
 load_dotenv()
 
-app = FastAPI()
+app = FastAPI(docs_url=None, redoc_url=None)
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -67,8 +67,8 @@ async def get_model_config(model_name, has_image=False):
         base_url = GITHUB_BASE_URL
         collection_name = "github_keys"
     else:
-        base_url = CHATANYWHERE_BASE_URL
-        collection_name = "chatanywhere_keys"
+        base_url = GITHUB_BASE_URL
+        collection_name = "github_keys"
     
     headers = {
         "Authorization": ADMIN_TOKEN
@@ -132,8 +132,17 @@ async def chat_completions(
 async def root():
     return {"message": "Server is running"}
 
+security = HTTPBasic()
+
+def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
+    correct_username = "admin"
+    correct_password = "admin"
+    if credentials.username != correct_username or credentials.password != correct_password:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return True
+
 @app.get("/prompts", response_class=HTMLResponse)
-async def get_prompts():
+async def get_prompts(auth: bool = Depends(authenticate)):
     conn = sqlite3.connect('prompts.db')
     cursor = conn.cursor()
     cursor.execute('SELECT id, prompt, image_urls, timestamp FROM prompts ORDER BY timestamp DESC')
