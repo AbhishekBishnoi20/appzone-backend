@@ -67,8 +67,8 @@ async def get_model_config(model_name, has_image=False):
         base_url = GITHUB_BASE_URL
         collection_name = "github_keys"
     else:
-        base_url = CHATANYWHERE_BASE_URL
-        collection_name = "chatanywhere_keys"
+        base_url = GITHUB_BASE_URL
+        collection_name = "github_keys"
     
     headers = {
         "Authorization": ADMIN_TOKEN
