@@ -6,3 +6,4 @@ slowapi
 jinja2
 python-multipart
 tiktoken
+pillow
