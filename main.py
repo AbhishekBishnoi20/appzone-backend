@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi import FastAPI, HTTPException, Depends, Request, File, UploadFile
 from fastapi.security import APIKeyHeader, HTTPBasic, HTTPBasicCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import StreamingResponse
@@ -31,6 +31,10 @@ import sqlite3
 from collections import defaultdict
 from datetime import datetime
 from prompt_routes import router as prompt_router
+from PyPDF2 import PdfReader
+from io import BytesIO
+import tiktoken
+from document_handlers.extractor import DocumentExtractor
 
 load_dotenv()
 
@@ -131,6 +135,22 @@ async def chat_completions(
 @app.get("/")
 async def root():
     return {"message": "Server is running"}
+
+@app.post("/extract-text")
+@limiter.limit("5/minute")
+async def extract_text(
+    request: Request,
+    file: UploadFile = File(...)
+):
+    """Universal route for text extraction from various file types."""
+    extractor = DocumentExtractor()
+    text, file_type = await extractor.extract_text(file)
+    return {
+        "text": text,
+        "file_type": file_type,
+        "filename": file.filename,
+        "tokens": len(extractor.encoding.encode(text))
+    }
 
 app.include_router(prompt_router)
 

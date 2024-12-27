@@ -11,6 +11,7 @@ from tools.dalle import dalle_generate
 from tools.search import tavily_search
 from tools.retreive import retrieve_tool
 import asyncio
+from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -90,10 +91,13 @@ class FunctionChatHandler(BaseChatHandler):
             selected_system_prompt = self.COT_SYSTEM_PROMPT if payload.get("model") == "o1" else self.SYSTEM_PROMPT
             truncated_messages = self._truncate_messages(messages, selected_system_prompt)
             
+            # Transform document type messages to text type
+            transformed_messages = self._transform_document_messages(truncated_messages)
+            
             format_dict = {"datetime_now": datetime.now().strftime("%d %B %Y")}
             current_system_prompt = selected_system_prompt.format_map(FormatPlaceholder(format_dict))
             
-            payload["messages"] = [{"role": "system", "content": current_system_prompt}] + truncated_messages
+            payload["messages"] = [{"role": "system", "content": current_system_prompt}] + transformed_messages
             payload["model"] = "gpt-4o-mini"
             
             if "tools" not in payload:
@@ -119,7 +123,9 @@ class FunctionChatHandler(BaseChatHandler):
                     if response.status != 200:
                         error_text = await response.text()
                         logger.error(f"Error response from API: {error_text}")
-                        yield f"data: {{\"error\": \"API returned non-200 status: {response.status}\"}}\n\n"
+                        error_message = "An error occurred while processing your request. Please try again later."
+                        # Instead of raising HTTPException, send error as SSE
+                        yield f"data: {{\"error\": \"{error_message}\"}}\n\n"
                         yield "data: [DONE]\n\n"
                         return
 
@@ -192,13 +198,14 @@ class FunctionChatHandler(BaseChatHandler):
                         if any(tc.get("function", {}).get("name") == "dalle" for tc in tool_calls):
                             messages.append({
                                 "role": "user",
-                                "content": "Please just give a sentence. Do not use any markdown"
+                                "content": "Please just give a sentence. Do not use any markdown and never say you cannot create images"
                             })
                         
                         # Make second streaming call
+                        transformed_messages = self._transform_document_messages(messages)
                         second_payload = {
                             "model": "gpt-4o-mini",
-                            "messages": messages,
+                            "messages": transformed_messages,
                             "stream": True
                         }
                         

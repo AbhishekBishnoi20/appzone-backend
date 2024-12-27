@@ -71,6 +71,9 @@ class BaseChatHandler:
                         image_url = item.get("image_url", {}).get("url", "")
                         if image_url:
                             image_data.append(image_url)
+                    elif item.get("type") == "document":
+                        document_text = item.get("text", "")
+                        text_content += f"Uploaded Document File Text: {document_text} "
         
         return text_content.strip(), image_data
 
@@ -79,38 +82,88 @@ class BaseChatHandler:
 
     def _truncate_messages(self, messages: list, system_prompt: str) -> list:
         total_tokens = self._count_tokens(system_prompt)
-        available_tokens = self.MAX_INPUT_TOKENS - 500
+        available_tokens = self.MAX_INPUT_TOKENS - 500  # 7500 tokens
         truncated_messages = []
         
+        # Find the latest document in all messages
+        document_tokens = 0
+        latest_document = None
+        latest_document_index = -1
+        
+        for i, message in enumerate(messages):
+            if isinstance(message.get("content"), list):
+                for item in message["content"]:
+                    if item.get("type") == "document":
+                        latest_document = item
+                        latest_document_index = i
+        
+        # Process the latest document if found
+        if latest_document:
+            document_text = latest_document.get("text", "")
+            document_tokens = self._count_tokens(document_text)
+            # Cap document tokens at 6000
+            if document_tokens > 6000:
+                document_text = self._truncate_text_to_tokens(document_text, 6000)
+                document_tokens = 6000
+            # Update the document text in the message
+            latest_document["text"] = document_text
+            
+            # Remove any other document messages
+            for message in messages:
+                if isinstance(message.get("content"), list):
+                    message["content"] = [
+                        item for item in message["content"]
+                        if item.get("type") != "document" or 
+                        (message is messages[latest_document_index] and item is latest_document)
+                    ]
+        
+        # Calculate remaining tokens for chat history
+        remaining_tokens = available_tokens - document_tokens
+        
+        # Always include the latest message
         if messages:
             latest_message = messages[-1]
             content = latest_message.get("content", "")
             if isinstance(content, list):
-                content_tokens = sum(self._count_tokens(item.get("text", "")) 
-                                  for item in content 
-                                  if item.get("type") == "text")
+                content_tokens = sum(
+                    self._count_tokens(item.get("text", "")) 
+                    for item in content 
+                    if item.get("type") in ["text", "document"]
+                )
             else:
                 content_tokens = self._count_tokens(str(content))
             
             total_tokens += content_tokens
             truncated_messages.insert(0, latest_message)
         
+        # Add previous messages until we hit the token limit
         for message in reversed(messages[:-1]):
             content = message.get("content", "")
             if isinstance(content, list):
-                content_tokens = sum(self._count_tokens(item.get("text", "")) 
-                                  for item in content 
-                                  if item.get("type") == "text")
+                content_tokens = sum(
+                    self._count_tokens(item.get("text", "")) 
+                    for item in content 
+                    if item.get("type") in ["text", "document"]
+                )
             else:
                 content_tokens = self._count_tokens(str(content))
             
-            if total_tokens + content_tokens <= available_tokens:
+            if total_tokens + content_tokens <= remaining_tokens:
                 total_tokens += content_tokens
                 truncated_messages.insert(0, message)
             else:
                 break
         
         return truncated_messages
+
+    def _truncate_text_to_tokens(self, text: str, max_tokens: int) -> str:
+        """Helper method to truncate text to a specific number of tokens"""
+        tokens = self.encoding.encode(text)
+        if len(tokens) <= max_tokens:
+            return text
+        
+        truncated_tokens = tokens[:max_tokens]
+        return self.encoding.decode(truncated_tokens)
 
     def _transform_response(self, json_data: dict, first_chunk: bool) -> dict:
         transformed_data = {
@@ -147,3 +200,20 @@ class BaseChatHandler:
             transformed_data["choices"][0]["finish_reason"] = finish_reason
         
         return transformed_data
+
+    def _transform_document_messages(self, messages: list) -> list:
+        transformed_messages = []
+        for message in messages:
+            if isinstance(message.get("content"), list):
+                new_content = []
+                for item in message["content"]:
+                    if item.get("type") == "document":
+                        new_content.append({
+                            "type": "text",
+                            "text": f"Uploaded Document File: {item.get('text', '')}"
+                        })
+                    else:
+                        new_content.append(item)
+                message = {**message, "content": new_content}
+            transformed_messages.append(message)
+        return transformed_messages

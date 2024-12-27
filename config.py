@@ -10,7 +10,7 @@ Important: Never respond with standalone bullet points or numbers. Always includ
 Knowledge cutoff: 2023-10
 Current date: {datetime_now}
 
-Image input capabilities: Enabled
+Image input capabilities: Enabled, means u can accept images from the user
 Personality: v2
 
 # Tools
@@ -150,7 +150,7 @@ IMPORTANT: You MUST cite your sources for every piece of information you provide
 
 # API Configuration
 POCKETBASE_URL = "https://pocketbase-forapp.appsettle.com/api/"
-ADMIN_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzQ4MDcyMTYsImlkIjoiN3djczBrOG9mNzBja284IiwidHlwZSI6ImFkbWluIn0.1P-rUWZl4ZayD6Dwvesk5lOL8DHYAN3pk6dEaGQJqUs"
+ADMIN_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzYwNjAxMjQsImlkIjoiN3djczBrOG9mNzBja284IiwidHlwZSI6ImFkbWluIn0.z70A9QRgGyU_TW5XEIGW2vF7PiT6i4VVU1w3Lcf_Bnc"
 CHATANYWHERE_BASE_URL = "https://api.openai.com/v1"
 GITHUB_BASE_URL = "https://models.inference.ai.azure.com"
 
