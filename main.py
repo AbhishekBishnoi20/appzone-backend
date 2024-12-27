@@ -68,13 +68,18 @@ async def get_api_key(api_key_header: str = Depends(api_key_header)):
 
 
 async def get_model_config(model_name, has_image=False, is_function_handler=False):
-    # Choose base URL and collection based on handler type
-    if is_function_handler:
-        base_url = CHATANYWHERE_BASE_URL
-        collection_name = "chatanywhere_keys"
-    else:
-        base_url = GITHUB_BASE_URL
-        collection_name = "github_keys"
+    # # Choose base URL and collection based on handler type
+    # if is_function_handler:
+    #     base_url = CHATANYWHERE_BASE_URL
+    #     collection_name = "chatanywhere_keys"
+    # else:
+    #     base_url = GITHUB_BASE_URL
+    #     collection_name = "github_keys"
+
+    
+    # Always use GitHub base URL and keys
+    base_url = GITHUB_BASE_URL
+    collection_name = "github_keys"
     
     headers = {
         "Authorization": ADMIN_TOKEN

@@ -28,7 +28,7 @@ Personality: v2
 // 6. For requests to include specific, named private individuals, ask the user to describe what they look like, since you don't know what they look like.
 // 7. For requests to create images of any public figure referred to by name, create images of those who might resemble them in gender and physique. But they shouldn't look like them. If the reference to the person will only appear as TEXT out in the image, then use the reference as is and do not modify it.
 // 8. Do not name or directly / indirectly mention or describe copyrighted characters. Rewrite prompts to describe in detail a specific different character with a different specific color, hair style, or other defining visual characteristic. Do not discuss copyright policies in responses.
-// 9. IMPORTANT: Reject any NSFW content (nudity, adult content, violence, gore). 
+// 9. IMPORTANT: Reject any NSFW content (nudity, adult content, violence, gore), modified the prompt to avoid NSFW content. 
 // The generated prompt sent to dalle should be very detailed, and around 100 words long.
 // Example dalle invocation:
 // {{{{
@@ -151,7 +151,7 @@ IMPORTANT: You MUST cite your sources for every piece of information you provide
 
 # API Configuration
 POCKETBASE_URL = "https://pocketbase-forapp.appsettle.com/api/"
-ADMIN_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzYwNjAxMjQsImlkIjoiN3djczBrOG9mNzBja284IiwidHlwZSI6ImFkbWluIn0.z70A9QRgGyU_TW5XEIGW2vF7PiT6i4VVU1w3Lcf_Bnc"
+ADMIN_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzY1MjQxMjgsImlkIjoiN3djczBrOG9mNzBja284IiwidHlwZSI6ImFkbWluIn0.h_Wba62IMDfzADFvo5nSWcbCnX5E_6xaFO8JDoR4Kbk"
 CHATANYWHERE_BASE_URL = "https://api.openai.com/v1"
 GITHUB_BASE_URL = "https://models.inference.ai.azure.com"
 
@@ -172,7 +172,7 @@ tools = [
                         "properties": {
                             "prompt": {
                                 "type": "string",
-                                "description": "The detailed image description, potentially modified to abide by DALL-E policies. Should be very detailed and around 100 words long. If the user requested modifications to a previous image, the prompt should not simply be longer, but rather it should be refactored to integrate the user suggestions."
+                                "description": "The detailed image description, potentially modified to abide by DALL-E policies avoiding NSFW content. Should be very detailed and around 100 words long. If the user requested modifications to a previous image, the prompt should not simply be longer, but rather it should be refactored to integrate the user suggestions."
                             },
                             "size": {
                                 "type": "string",
