@@ -103,6 +103,7 @@ class FunctionChatHandler(BaseChatHandler):
             if "tools" not in payload:
                 payload["tools"] = tools
                 payload["tool_choice"] = "auto"
+                payload["parallel_tool_calls"] = False
 
             headers = {
                 "Authorization": f"Bearer {api_key}",
