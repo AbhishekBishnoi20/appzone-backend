@@ -124,8 +124,34 @@ class FunctionChatHandler(BaseChatHandler):
                     if response.status != 200:
                         error_text = await response.text()
                         logger.error(f"Error response from API: {error_text}")
+                        
+                        # Check specifically for content management policy error
+                        if "content management policy" in error_text.lower():
+                            transformed_data = {
+                                "id": "error",
+                                "object": "chat.completion.chunk",
+                                "created": int(datetime.now().timestamp()),
+                                "model": payload.get("model", ""),
+                                "choices": [{
+                                    "index": 0,
+                                    "delta": {
+                                        "role": "assistant",
+                                        "content": "⚠️ The content may trigger our content management policy. Please modify your prompt and retry."
+                                    },
+                                    "finish_reason": None
+                                }]
+                            }
+                            yield f"data: {json.dumps(transformed_data)}\n\n"
+                            
+                            # Send final chunk with finish_reason
+                            transformed_data["choices"][0]["delta"] = {}
+                            transformed_data["choices"][0]["finish_reason"] = "stop"
+                            yield f"data: {json.dumps(transformed_data)}\n\n"
+                            yield "data: [DONE]\n\n"
+                            return
+                        
+                        # For all other errors, use the fixed error message
                         error_message = "An error occurred while processing your request. Please try again later."
-                        # Instead of raising HTTPException, send error as SSE
                         yield f"data: {{\"error\": \"{error_message}\"}}\n\n"
                         yield "data: [DONE]\n\n"
                         return

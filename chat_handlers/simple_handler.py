@@ -51,7 +51,7 @@ class SimpleChatHandler(BaseChatHandler):
                                     "index": 0,
                                     "delta": {
                                         "role": "assistant",
-                                        "content": "⚠️ The response was filtered due to the prompt triggering our content management policy. Please modify your prompt and retry."
+                                        "content": "⚠️ The content may trigger our content management policy. Please modify your prompt and retry."
                                     },
                                     "finish_reason": None
                                 }]
@@ -65,8 +65,9 @@ class SimpleChatHandler(BaseChatHandler):
                             yield "data: [DONE]\n\n"
                             return
                             
-                        # For all other errors, keep existing behavior
-                        yield f"data: {{\"error\": \"API returned non-200 status: {response.status}\"}}\n\n"
+                        # For all other errors, use the fixed error message
+                        error_message = "An error occurred while processing your request. Please try again later."
+                        yield f"data: {{\"error\": \"{error_message}\"}}\n\n"
                         yield "data: [DONE]\n\n"
                         return
 
