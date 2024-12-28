@@ -117,39 +117,50 @@ class BaseChatHandler:
                         (message is messages[latest_document_index] and item is latest_document)
                     ]
         
-        # Calculate remaining tokens for chat history
-        remaining_tokens = available_tokens - document_tokens
-        
-        # Always include the latest message
+        # Always include the latest message, but truncate if too large
         if messages:
             latest_message = messages[-1]
             content = latest_message.get("content", "")
-            if isinstance(content, list):
-                content_tokens = sum(
-                    self._count_tokens(item.get("text", "")) 
-                    for item in content 
-                    if item.get("type") in ["text", "document"]
-                )
-            else:
-                content_tokens = self._count_tokens(str(content))
             
-            total_tokens += content_tokens
+            if isinstance(content, list):
+                # For list content (like with images or documents)
+                new_content = []
+                current_tokens = 0
+                
+                for item in content:
+                    if item.get("type") in ["text", "document"]:
+                        item_text = item.get("text", "")
+                        item_tokens = self._count_tokens(item_text)
+                        
+                        if current_tokens + item_tokens > 7500:
+                            # Truncate this text item
+                            available_item_tokens = 7500 - current_tokens
+                            if available_item_tokens > 0:
+                                item["text"] = self._truncate_text_to_tokens(item_text, available_item_tokens)
+                                new_content.append(item)
+                            break
+                        else:
+                            current_tokens += item_tokens
+                            new_content.append(item)
+                    else:
+                        # Keep non-text items (like images) without counting tokens
+                        new_content.append(item)
+                
+                latest_message["content"] = new_content
+            else:
+                # For simple string content
+                content_tokens = self._count_tokens(str(content))
+                if content_tokens > 7500:
+                    latest_message["content"] = self._truncate_text_to_tokens(str(content), 7500)
+            
             truncated_messages.insert(0, latest_message)
+            total_tokens = self._count_tokens(system_prompt + json.dumps(latest_message))
         
         # Add previous messages until we hit the token limit
         for message in reversed(messages[:-1]):
-            content = message.get("content", "")
-            if isinstance(content, list):
-                content_tokens = sum(
-                    self._count_tokens(item.get("text", "")) 
-                    for item in content 
-                    if item.get("type") in ["text", "document"]
-                )
-            else:
-                content_tokens = self._count_tokens(str(content))
-            
-            if total_tokens + content_tokens <= remaining_tokens:
-                total_tokens += content_tokens
+            message_tokens = self._count_tokens(json.dumps(message))
+            if total_tokens + message_tokens <= available_tokens:
+                total_tokens += message_tokens
                 truncated_messages.insert(0, message)
             else:
                 break
