@@ -33,6 +33,8 @@ class SimpleChatHandler(BaseChatHandler):
         async with aiohttp.ClientSession(timeout=timeout) as session:
             try:
                 api_url = f"{base_url}/chat/completions"
+                logger.info(f"Sending request to {api_url}")
+                
                 async with session.post(api_url, json=payload, headers=headers) as response:
                     if response.status != 200:
                         error_text = await response.text()
@@ -42,6 +44,8 @@ class SimpleChatHandler(BaseChatHandler):
                         return
 
                     first_chunk = True
+                    full_response = []  # Collect full response for logging
+                    
                     async for line in response.content:
                         if line:
                             line = line.decode('utf-8').strip()
@@ -51,6 +55,12 @@ class SimpleChatHandler(BaseChatHandler):
                                     json_data = json.loads(data)
                                     transformed_data = self._transform_response(json_data, first_chunk)
                                     first_chunk = False
+                                    
+                                    # Collect response for logging
+                                    if 'choices' in json_data and json_data['choices']:
+                                        content = json_data['choices'][0].get('delta', {}).get('content', '')
+                                        if content:
+                                            full_response.append(content)
                                     
                                     choices = json_data.get("choices", [])
                                     if choices:
@@ -62,6 +72,8 @@ class SimpleChatHandler(BaseChatHandler):
                                         yield response_to_send
                                         
                                         if finish_reason == "stop":
+                                            # Log the complete response after sending everything to user
+                                            logger.info(f"Complete response: {''.join(full_response)}")
                                             return
                                 except json.JSONDecodeError:
                                     logger.error(f"Failed to parse JSON: {data}")
