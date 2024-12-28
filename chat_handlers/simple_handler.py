@@ -11,6 +11,7 @@ class SimpleChatHandler(BaseChatHandler):
     async def process_chat_completion(self, payload: dict, base_url: str, api_key: str) -> AsyncGenerator[str, None]:
         messages = payload.get("messages", [])
         text_content, image_urls = self._extract_prompt_content(messages)
+        logger.info(f"User prompt: {text_content[:500]}{'...' if len(text_content) > 500 else ''}")
         await self.save_prompt(text_content, image_urls)
         
         selected_system_prompt = self.COT_SYSTEM_PROMPT if payload.get("model") == "o1" else self.SYSTEM_PROMPT
@@ -72,7 +73,7 @@ class SimpleChatHandler(BaseChatHandler):
                         return
 
                     first_chunk = True
-                    full_response = []  # Collect full response for logging
+                    response_preview = []  # Collect response for logging
                     
                     async for line in response.content:
                         if line:
@@ -84,11 +85,11 @@ class SimpleChatHandler(BaseChatHandler):
                                     transformed_data = self._transform_response(json_data, first_chunk)
                                     first_chunk = False
                                     
-                                    # Collect response for logging
+                                    # Collect response content for logging
                                     if 'choices' in json_data and json_data['choices']:
                                         content = json_data['choices'][0].get('delta', {}).get('content', '')
                                         if content:
-                                            full_response.append(content)
+                                            response_preview.append(content)
                                     
                                     choices = json_data.get("choices", [])
                                     if choices:
@@ -100,8 +101,9 @@ class SimpleChatHandler(BaseChatHandler):
                                         yield response_to_send
                                         
                                         if finish_reason == "stop":
-                                            # Log the complete response after sending everything to user
-                                            logger.info(f"Complete response: {''.join(full_response)}")
+                                            # Log the preview of the response with 500 chars
+                                            preview = ''.join(response_preview)
+                                            logger.info(f"Response preview: {preview[:500]}{'...' if len(preview) > 500 else ''}")
                                             return
                                 except json.JSONDecodeError:
                                     logger.error(f"Failed to parse JSON: {data}")
