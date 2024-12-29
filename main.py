@@ -141,6 +141,25 @@ async def chat_completions(
 async def root():
     return {"message": "Server is running"}
 
+@app.post("/report-messages")
+@limiter.limit("10/minute")
+async def report_messages(
+    request: Request, 
+    api_key: str = Depends(get_api_key)  # Add API key authentication
+):
+    """
+    Endpoint to receive and log reported messages.
+    Requires authentication and logs the message.
+    """
+    try:
+        payload = await request.json()
+        message = payload.get('message', '')
+        logger.info(f"Reported Message: {message}")
+        return {"status": "success"}
+    except Exception as e:
+        logger.error(f"Error processing report: {e}")
+        raise HTTPException(status_code=400, detail="Invalid report")
+
 @app.post("/extract-text")
 @limiter.limit("5/minute")
 async def extract_text(
