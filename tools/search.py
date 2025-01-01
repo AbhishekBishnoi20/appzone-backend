@@ -6,7 +6,7 @@ from datetime import datetime
 currentDate = datetime.now().strftime("%d %B %Y")
 
 async def tavily_search(query="write a poem on AI", max_results=10):
-    api_key = "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"
+    api_key = "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"
     url = 'https://api.tavily.com/search'
     headers = {
         'Content-Type': 'application/json'
