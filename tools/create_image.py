@@ -22,6 +22,14 @@ async def generate_image(prompt: str, size: str = "1024x1024"):
     size_format = determine_size_format(size)
     logger.info(f"Determined size format: {size_format}")
     
+    # Proxy configuration
+    proxy_host = "161.123.152.115"
+    proxy_port = "6360"
+    proxy_user = "lejsjtly"
+    proxy_pass = "nwhqsl95opf8"
+    
+    proxy_url = f"http://{proxy_user}:{proxy_pass}@{proxy_host}:{proxy_port}"
+    
     # Headers based on the request
     headers = {
         "accept": "application/json, text/plain, */*",
@@ -41,26 +49,38 @@ async def generate_image(prompt: str, size: str = "1024x1024"):
     form_data = aiohttp.FormData()
     form_data.add_field("prompt", prompt)
     form_data.add_field("model", "flux_1_schnell")
-    form_data.add_field("size", size_format)  # Use determined size format
+    form_data.add_field("size", size_format)
     form_data.add_field("lora", "null")
     form_data.add_field("style", "no_style")
     form_data.add_field("color", "no_color")
     form_data.add_field("lighting", "no_lighting")
     form_data.add_field("composition", "null")
 
+    # Create ClientSession with proxy
     async with aiohttp.ClientSession() as session:
-        logger.info("Making API request...")
-        async with session.post(url, headers=headers, data=form_data) as response:
-            if response.status == 200:
-                logger.info("Received 200 response from API")
-                data = await response.json()
-                result = data.get('result')
-                logger.info("Successfully extracted image data")
-                return result
-            else:
-                error_msg = f"Error: {response.status} - {await response.text()}"
-                logger.error(error_msg)
-                return error_msg
+        try:
+            logger.info("Making API request through proxy...")
+            async with session.post(
+                url, 
+                headers=headers, 
+                data=form_data,
+                proxy=proxy_url,
+                ssl=False  # Added in case of SSL verification issues with proxy
+            ) as response:
+                if response.status == 200:
+                    logger.info("Received 200 response from API")
+                    data = await response.json()
+                    result = data.get('result')
+                    logger.info("Successfully extracted image data")
+                    return result
+                else:
+                    error_msg = f"Error: {response.status} - {await response.text()}"
+                    logger.error(error_msg)
+                    return error_msg
+        except Exception as e:
+            error_msg = f"Proxy connection error: {str(e)}"
+            logger.error(error_msg)
+            return error_msg
 
 async def main():
     prompt = "https://i.ibb.co/hgcn6SK/28e2d0765f56.png"
@@ -82,3 +102,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+    
