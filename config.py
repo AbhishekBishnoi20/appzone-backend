@@ -151,7 +151,7 @@ IMPORTANT: You MUST cite your sources for every piece of information you provide
 
 # API Configuration
 POCKETBASE_URL = "https://pocketbase-forapp.appsettle.com/api/"
-ADMIN_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzY1MjQxMjgsImlkIjoiN3djczBrOG9mNzBja284IiwidHlwZSI6ImFkbWluIn0.h_Wba62IMDfzADFvo5nSWcbCnX5E_6xaFO8JDoR4Kbk"
+ADMIN_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3Mzc3MzUwNzIsImlkIjoiN3djczBrOG9mNzBja284IiwidHlwZSI6ImFkbWluIn0.PYrklBLYn1wZ6kS0BSBX4iMnagWcloZpwYjOqfg3ZnU"
 CHATANYWHERE_BASE_URL = "https://api.openai.com/v1"
 GITHUB_BASE_URL = "https://models.inference.ai.azure.com"
 
