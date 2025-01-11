@@ -4,6 +4,7 @@ import aiohttp
 from typing import AsyncGenerator
 from .base_handler import BaseChatHandler, FormatPlaceholder
 from datetime import datetime
+from base.db.prompts import store_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -12,35 +13,35 @@ class SimpleChatHandler(BaseChatHandler):
         messages = payload.get("messages", [])
         text_content, image_urls = self._extract_prompt_content(messages)
         logger.info(f"User prompt: {text_content[:500]}{'...' if len(text_content) > 500 else ''}")
-        await self.save_prompt(text_content, image_urls)
-        
+        await store_prompt(text_content, image_urls)
+
         selected_system_prompt = self.COT_SYSTEM_PROMPT if payload.get("model") == "o1" else self.SYSTEM_PROMPT
-        
+
         truncated_messages = self._truncate_messages(messages, selected_system_prompt)
-        
+
         format_dict = {"datetime_now": datetime.now().strftime("%d %B %Y")}
         current_system_prompt = selected_system_prompt.format_map(FormatPlaceholder(format_dict))
-        
+
         payload["messages"] = [{"role": "system", "content": current_system_prompt}] + truncated_messages
         payload["model"] = "gpt-4o-mini"
-        
+
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
 
         timeout = aiohttp.ClientTimeout(total=300, connect=30)
-        
+
         async with aiohttp.ClientSession(timeout=timeout) as session:
             try:
                 api_url = f"{base_url}/chat/completions"
                 logger.info(f"Sending request to {api_url}")
-                
+
                 async with session.post(api_url, json=payload, headers=headers) as response:
                     if response.status != 200:
                         error_text = await response.text()
                         logger.error(f"Error response from API: {error_text}")
-                        
+
                         # Check specifically for content management policy error
                         if "content management policy" in error_text.lower():
                             transformed_data = {
@@ -58,14 +59,14 @@ class SimpleChatHandler(BaseChatHandler):
                                 }]
                             }
                             yield f"data: {json.dumps(transformed_data)}\n\n"
-                            
+
                             # Send final chunk with finish_reason
                             transformed_data["choices"][0]["delta"] = {}
                             transformed_data["choices"][0]["finish_reason"] = "stop"
                             yield f"data: {json.dumps(transformed_data)}\n\n"
                             yield "data: [DONE]\n\n"
                             return
-                            
+
                         # For all other errors, use the fixed error message
                         error_message = "An error occurred while processing your request. Please try again later."
                         yield f"data: {{\"error\": \"{error_message}\"}}\n\n"
@@ -74,7 +75,7 @@ class SimpleChatHandler(BaseChatHandler):
 
                     first_chunk = True
                     response_preview = []  # Collect response for logging
-                    
+
                     async for line in response.content:
                         if line:
                             line = line.decode('utf-8').strip()
@@ -84,22 +85,22 @@ class SimpleChatHandler(BaseChatHandler):
                                     json_data = json.loads(data)
                                     transformed_data = self._transform_response(json_data, first_chunk)
                                     first_chunk = False
-                                    
+
                                     # Collect response content for logging
                                     if 'choices' in json_data and json_data['choices']:
                                         content = json_data['choices'][0].get('delta', {}).get('content', '')
                                         if content:
                                             response_preview.append(content)
-                                    
+
                                     choices = json_data.get("choices", [])
                                     if choices:
                                         finish_reason = choices[0].get("finish_reason")
-                                        
+
                                         response_to_send = f"data: {json.dumps(transformed_data)}\n\n"
                                         if finish_reason == "stop":
                                             response_to_send += "data: [DONE]\n\n"
                                         yield response_to_send
-                                        
+
                                         if finish_reason == "stop":
                                             # Log the preview of the response with 500 chars
                                             preview = ''.join(response_preview)

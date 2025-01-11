@@ -1,0 +1,29 @@
+services:
+  app:
+    depends_on:
+      pocketbase:
+        condition: service_started
+    environment:
+      TZ: Asia/Kolkata
+      POCKETBASE_URL: http://pocketbase:8080
+      DB_PATH: /database/pb_data/data.db
+      ENV: dev
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    ports:
+      - 8000:8000
+    volumes:
+      - ./app:/app
+      - ./database:/database
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  pocketbase:
+    build:
+      context: .
+      dockerfile: database/Dockerfile
+    volumes:
+      - ./database:/database
+    ports:
+      - "8080:8080"
+    command: /pb/pocketbase serve --http=0.0.0.0:8080 --dir /database/pb_data

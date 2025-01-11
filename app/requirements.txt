@@ -9,8 +9,9 @@ tiktoken
 pillow
 python-docx
 python-pptx
-pandas
 openpyxl
 xlrd
 PyPDF2
 aiofiles
+aiosqlite
+apscheduler

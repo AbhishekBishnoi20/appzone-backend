@@ -3,7 +3,7 @@ from fastapi import HTTPException, UploadFile
 from PyPDF2 import PdfReader
 import tiktoken
 from io import BytesIO
-import pandas as pd
+
 from typing import Tuple, List
 from docx import Document
 from pptx import Presentation
@@ -31,7 +31,7 @@ class DocumentExtractor:
     }
 
     SUPPORTED_EXTENSIONS = {
-        '.txt', '.csv', '.pdf', '.xlsx', '.xls', 
+        '.txt', '.csv', '.pdf', '.xlsx', '.xls',
         '.doc', '.docx', '.ppt', '.pptx'
     }
 
@@ -43,13 +43,13 @@ class DocumentExtractor:
         """Determine the file type from the uploaded file."""
         content_type = file.content_type
         file_type = self.SUPPORTED_TYPES.get(content_type)
-        
+
         if not file_type:
             raise HTTPException(
-                status_code=400, 
+                status_code=400,
                 detail=f"Unsupported file type: {content_type}. Supported types: {list(self.SUPPORTED_TYPES.keys())}"
             )
-        
+
         return file_type
 
     async def extract_text(self, file: UploadFile) -> Tuple[str, str]:
@@ -60,9 +60,9 @@ class DocumentExtractor:
         try:
             file_type = self._get_file_type(file)
             logger.info(f"Processing {file_type} file: {file.filename}")
-            
+
             content = await file.read()
-            
+
             # Extract text based on file type
             if file_type == 'zip':
                 text = await self._extract_zip(content, file.filename)
@@ -76,16 +76,16 @@ class DocumentExtractor:
                 text = await self._extract_powerpoint(content, file.filename)
             elif file_type == 'text':
                 text = content.decode('utf-8')
-            
+
             # Ensure token limit
             if len(self.encoding.encode(text)) > self.max_tokens:
                 truncated_tokens = self.encoding.encode(text)[:self.max_tokens]
                 text = self.encoding.decode(truncated_tokens)
-            
+
             logger.info(f"Successfully extracted text from {file_type} file: {file.filename} "
                        f"(tokens: {len(self.encoding.encode(text))})")
             return text, file_type
-            
+
         except Exception as e:
             logger.error(f"Error extracting text from {file.filename}: {str(e)}", exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
@@ -94,11 +94,11 @@ class DocumentExtractor:
         """Extract text from PDF content."""
         pdf = PdfReader(BytesIO(content))
         text = ""
-        
+
         for page in pdf.pages:
             page_text = page.extract_text()
             current_text = text + page_text
-            
+
             if len(self.encoding.encode(current_text)) > self.max_tokens:
                 remaining_tokens = self.max_tokens - len(self.encoding.encode(text))
                 if remaining_tokens > 0:
@@ -107,7 +107,7 @@ class DocumentExtractor:
                 break
             else:
                 text += page_text
-                
+
         return text
 
     async def _extract_tabular(self, content: bytes, filename: str, file_type: str) -> str:
@@ -123,10 +123,10 @@ class DocumentExtractor:
                     df = pd.read_excel(BytesIO(content), engine='xlrd')
             else:  # csv
                 df = pd.read_csv(BytesIO(content))
-            
+
             # Convert DataFrame to a more readable format
             return df.to_string(index=False)  # Exclude index for cleaner output
-            
+
         except Exception as e:
             logger.error(f"Error processing tabular file {filename}: {str(e)}")
             raise HTTPException(
@@ -139,12 +139,12 @@ class DocumentExtractor:
         try:
             doc = Document(BytesIO(content))
             text = ""
-            
+
             # Extract text from paragraphs
             for paragraph in doc.paragraphs:
                 paragraph_text = paragraph.text + "\n"
                 current_text = text + paragraph_text
-                
+
                 # Check token limit
                 if len(self.encoding.encode(current_text)) > self.max_tokens:
                     remaining_tokens = self.max_tokens - len(self.encoding.encode(text))
@@ -154,22 +154,22 @@ class DocumentExtractor:
                     break
                 else:
                     text += paragraph_text
-            
+
             # Extract text from tables
             for table in doc.tables:
                 for row in table.rows:
                     row_text = " | ".join(cell.text for cell in row.cells) + "\n"
                     current_text = text + row_text
-                    
+
                     if len(self.encoding.encode(current_text)) > self.max_tokens:
                         break
                     text += row_text
-                
+
                 if len(self.encoding.encode(text)) > self.max_tokens:
                     break
-            
+
             return text.strip()
-            
+
         except Exception as e:
             logger.error(f"Error processing Word document {filename}: {str(e)}")
             raise HTTPException(
@@ -194,15 +194,15 @@ class DocumentExtractor:
                 # Process each file in the ZIP
                 all_text = []
                 total_tokens = 0
-                
+
                 for root, _, files in os.walk(temp_dir):
                     for file in files:
                         if file == 'temp.zip':
                             continue
-                            
+
                         file_path = os.path.join(root, file)
                         extension = Path(file).suffix.lower()
-                        
+
                         if extension not in self.SUPPORTED_EXTENSIONS:
                             logger.info(f"Skipping unsupported file: {file}")
                             continue
@@ -217,7 +217,7 @@ class DocumentExtractor:
                                 file_text = await self._extract_pdf(file_content, file)
                             elif extension in ['.xlsx', '.xls', '.csv']:
                                 file_text = await self._extract_tabular(
-                                    file_content, 
+                                    file_content,
                                     file,
                                     'excel' if extension in ['.xlsx', '.xls'] else 'csv'
                                 )
@@ -228,13 +228,13 @@ class DocumentExtractor:
 
                             # Add file header
                             file_text = f"\n=== {file} ===\n{file_text}"
-                            
+
                             # Check token limit
                             new_tokens = len(self.encoding.encode(file_text))
                             if total_tokens + new_tokens > self.max_tokens:
                                 logger.warning(f"Token limit reached. Skipping remaining files in ZIP.")
                                 break
-                            
+
                             total_tokens += new_tokens
                             all_text.append(file_text)
 
@@ -256,36 +256,36 @@ class DocumentExtractor:
         try:
             prs = Presentation(BytesIO(content))
             text = []
-            
+
             # Process each slide
             for slide_number, slide in enumerate(prs.slides, 1):
                 slide_text = [f"\n=== Slide {slide_number} ===\n"]
-                
+
                 # Extract text from shapes (including title and content placeholders)
                 for shape in slide.shapes:
                     if hasattr(shape, "text") and shape.text.strip():
                         shape_text = shape.text.strip()
-                        
+
                         # Check token limit
                         current_text = "\n".join(text) + "\n".join(slide_text) + shape_text
                         if len(self.encoding.encode(current_text)) > self.max_tokens:
                             logger.warning(f"Token limit reached at slide {slide_number}. Truncating...")
                             text.extend(slide_text)
                             return "\n".join(text)
-                        
+
                         slide_text.append(shape_text)
-                
+
                 # Add notes if they exist
                 if slide.has_notes_slide and slide.notes_slide.notes_text_frame.text.strip():
                     notes_text = f"[Notes: {slide.notes_slide.notes_text_frame.text.strip()}]"
                     current_text = "\n".join(text) + "\n".join(slide_text) + notes_text
                     if len(self.encoding.encode(current_text)) <= self.max_tokens:
                         slide_text.append(notes_text)
-                
+
                 text.extend(slide_text)
-            
+
             return "\n".join(text)
-            
+
         except Exception as e:
             logger.error(f"Error processing PowerPoint file {filename}: {str(e)}")
             raise HTTPException(

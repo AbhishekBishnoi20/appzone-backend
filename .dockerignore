@@ -1,6 +1,8 @@
-.env
 __pycache__
 *.pyc
+.env
+.git
+.gitignore
 .vscode
 pb_data
 pb_migrations

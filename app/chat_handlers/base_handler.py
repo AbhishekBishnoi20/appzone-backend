@@ -1,9 +1,9 @@
 import json
 import logging
 import asyncio
-import sqlite3
 import tiktoken
 from datetime import datetime
+from base.db.prompts import store_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -17,51 +17,30 @@ class BaseChatHandler:
         self.COT_SYSTEM_PROMPT = cot_system_prompt
         self.MAX_INPUT_TOKENS = 8000
         self.encoding = tiktoken.get_encoding("cl100k_base")
-        self.db_connection = sqlite3.connect('prompts.db', check_same_thread=False)
-        self._setup_database()
-
-    def _setup_database(self):
-        with self.db_connection:
-            self.db_connection.execute('''
-                CREATE TABLE IF NOT EXISTS prompts (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    prompt TEXT NOT NULL,
-                    image_urls TEXT,
-                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
 
     async def save_prompt(self, prompt: str, image_urls: list):
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, self._insert_prompt, prompt, image_urls)
-
-    def _insert_prompt(self, prompt: str, image_urls: list):
-        with self.db_connection:
-            self.db_connection.execute(
-                'INSERT INTO prompts (prompt, image_urls, timestamp) VALUES (?, ?, CURRENT_TIMESTAMP)',
-                (prompt, json.dumps(image_urls))
-            )
+        await store_prompt(prompt, json.dumps(image_urls))
 
     def _extract_prompt_content(self, messages):
         if not messages:
             return "", []
-        
+
         last_user_message = None
         for message in reversed(messages):
             if message.get("role") == "user":
                 last_user_message = message
                 break
-        
+
         if not last_user_message:
             return "", []
-        
+
         content = last_user_message.get("content", "")
         image_data = []
         text_content = ""
-        
+
         if isinstance(content, str):
             return content, image_data
-        
+
         if isinstance(content, list):
             for item in content:
                 if isinstance(item, dict):
@@ -74,7 +53,7 @@ class BaseChatHandler:
                     elif item.get("type") == "document":
                         document_text = item.get("text", "")
                         text_content += f"Uploaded Document File Text: {document_text} "
-        
+
         return text_content.strip(), image_data
 
     def _count_tokens(self, text: str) -> int:
@@ -84,19 +63,19 @@ class BaseChatHandler:
         total_tokens = self._count_tokens(system_prompt)
         available_tokens = self.MAX_INPUT_TOKENS - 500  # 7500 tokens
         truncated_messages = []
-        
+
         # Find the latest document in all messages
         document_tokens = 0
         latest_document = None
         latest_document_index = -1
-        
+
         for i, message in enumerate(messages):
             if isinstance(message.get("content"), list):
                 for item in message["content"]:
                     if item.get("type") == "document":
                         latest_document = item
                         latest_document_index = i
-        
+
         # Process the latest document if found
         if latest_document:
             document_text = latest_document.get("text", "")
@@ -107,31 +86,31 @@ class BaseChatHandler:
                 document_tokens = 6000
             # Update the document text in the message
             latest_document["text"] = document_text
-            
+
             # Remove any other document messages
             for message in messages:
                 if isinstance(message.get("content"), list):
                     message["content"] = [
                         item for item in message["content"]
-                        if item.get("type") != "document" or 
+                        if item.get("type") != "document" or
                         (message is messages[latest_document_index] and item is latest_document)
                     ]
-        
+
         # Always include the latest message, but truncate if too large
         if messages:
             latest_message = messages[-1]
             content = latest_message.get("content", "")
-            
+
             if isinstance(content, list):
                 # For list content (like with images or documents)
                 new_content = []
                 current_tokens = 0
-                
+
                 for item in content:
                     if item.get("type") in ["text", "document"]:
                         item_text = item.get("text", "")
                         item_tokens = self._count_tokens(item_text)
-                        
+
                         if current_tokens + item_tokens > 7500:
                             # Truncate this text item
                             available_item_tokens = 7500 - current_tokens
@@ -145,17 +124,17 @@ class BaseChatHandler:
                     else:
                         # Keep non-text items (like images) without counting tokens
                         new_content.append(item)
-                
+
                 latest_message["content"] = new_content
             else:
                 # For simple string content
                 content_tokens = self._count_tokens(str(content))
                 if content_tokens > 7500:
                     latest_message["content"] = self._truncate_text_to_tokens(str(content), 7500)
-            
+
             truncated_messages.insert(0, latest_message)
             total_tokens = self._count_tokens(system_prompt + json.dumps(latest_message))
-        
+
         # Add previous messages until we hit the token limit
         for message in reversed(messages[:-1]):
             message_tokens = self._count_tokens(json.dumps(message))
@@ -164,7 +143,7 @@ class BaseChatHandler:
                 truncated_messages.insert(0, message)
             else:
                 break
-        
+
         return truncated_messages
 
     def _truncate_text_to_tokens(self, text: str, max_tokens: int) -> str:
@@ -172,7 +151,7 @@ class BaseChatHandler:
         tokens = self.encoding.encode(text)
         if len(tokens) <= max_tokens:
             return text
-        
+
         truncated_tokens = tokens[:max_tokens]
         return self.encoding.decode(truncated_tokens)
 
@@ -190,12 +169,12 @@ class BaseChatHandler:
                 "finish_reason": None
             }]
         }
-        
+
         choices = json_data.get("choices", [])
         if choices:
             choice = choices[0]
             finish_reason = choice.get("finish_reason")
-            
+
             if first_chunk:
                 transformed_data["choices"][0]["delta"] = {
                     "role": "assistant",
@@ -207,9 +186,9 @@ class BaseChatHandler:
                 transformed_data["choices"][0]["delta"] = {
                     "content": choice.get("delta", {}).get("content", "")
                 }
-            
+
             transformed_data["choices"][0]["finish_reason"] = finish_reason
-        
+
         return transformed_data
 
     def _transform_document_messages(self, messages: list) -> list:
