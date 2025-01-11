@@ -129,6 +129,7 @@ async def chat_completions(
         logger.error(f"Error in chat_completions: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.get("/")
 async def root():
     return {"message": "Server is running"}
