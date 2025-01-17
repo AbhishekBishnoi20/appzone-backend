@@ -9,9 +9,5 @@ COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r requirements.txt
 
-# Create an empty __init__.py file to make the directory a Python package
-RUN touch __init__.py
 
 COPY . .
-
-ENV PYTHONPATH=/app
